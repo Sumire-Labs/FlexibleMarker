@@ -22,6 +22,7 @@ public class MarkerClient {
     @Mod.EventHandler
     @SideOnly(value = Side.CLIENT)
     public static void preClientInit(FMLPreInitializationEvent event) {
+        com.sumirelabs.flexiblemarker.dev.MarkerSmokeTest.install();
         ClientRegistry.bindTileEntitySpecialRenderer(TileFlexMarker.class, RenderMarker.getInstance());
         ClientRegistry.bindTileEntitySpecialRenderer(Tile16Marker.class, Render16Marker.getInstance());
     }

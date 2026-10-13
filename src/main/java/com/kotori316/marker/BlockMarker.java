@@ -33,7 +33,7 @@ public abstract class BlockMarker extends Block implements ITileEntityProvider {
     public BlockMarker(String registryName, String unlocalizedName) {
         super(Material.CIRCUITS);
         setRegistryName(Marker.modID, registryName);
-        setUnlocalizedName(unlocalizedName);
+        setTranslationKey(unlocalizedName);
         setCreativeTab(CreativeTabs.REDSTONE);
         this.hasTileEntity = true;
         this.itemBlock = new ItemBlock(this);
@@ -65,7 +65,7 @@ public abstract class BlockMarker extends Block implements ITileEntityProvider {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public BlockRenderLayer getBlockLayer() {
+    public BlockRenderLayer getRenderLayer() {
         return BlockRenderLayer.CUTOUT;
     }
 
@@ -131,7 +131,7 @@ public abstract class BlockMarker extends Block implements ITileEntityProvider {
 
         @Override
         protected boolean openGUI(World worldIn, BlockPos pos, EntityPlayer playerIn) {
-            playerIn.openGui(Marker.getInstance(), GuiHandler.Marker_ID, worldIn, pos.getX(), pos.getY(), pos.getZ());
+            com.sumirelabs.flexiblemarker.gui.mui.MarkerGuiFactory.open(playerIn, GuiHandler.Marker_ID, worldIn, pos);
             return true;
         }
 
@@ -150,7 +150,7 @@ public abstract class BlockMarker extends Block implements ITileEntityProvider {
 
         @Override
         protected boolean openGUI(World worldIn, BlockPos pos, EntityPlayer playerIn) {
-            playerIn.openGui(Marker.getInstance(), GuiHandler.Marker16_ID, worldIn, pos.getX(), pos.getY(), pos.getZ());
+            com.sumirelabs.flexiblemarker.gui.mui.MarkerGuiFactory.open(playerIn, GuiHandler.Marker16_ID, worldIn, pos);
             return true;
         }
 

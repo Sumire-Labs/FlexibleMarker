@@ -47,13 +47,18 @@ public class ButtonMessage implements IMessage {
     }
 
     public static IMessage onReceive(ButtonMessage message, MessageContext ctx) {
-        World world = ctx.getServerHandler().player.world;
-        TileEntity entity = world.getTileEntity(message.pos);
-        if (entity instanceof TileFlexMarker && world.provider.getDimension() == message.dim) {
-            TileFlexMarker marker = (TileFlexMarker) entity;
-            marker.move(message.movable, message.amount);
-            return new AreaMessage(message.pos, message.dim, marker.min(), marker.max());
-        }
+        net.minecraft.entity.player.EntityPlayerMP player = ctx.getServerHandler().player;
+        player.getServerWorld().addScheduledTask(() -> {
+            World world = player.world;
+            if (world.provider.getDimension() != message.dim || player.getDistanceSqToCenter(message.pos) > 64
+                    || !world.isBlockLoaded(message.pos)) return;
+            TileEntity entity = world.getTileEntity(message.pos);
+            if (entity instanceof TileFlexMarker marker) {
+                marker.move(message.movable, message.amount);
+                marker.markDirty();
+                PacketHandler.sendToClient(new AreaMessage(message.pos, message.dim, marker.min(), marker.max()), player);
+            }
+        });
         return null;
     }
 }

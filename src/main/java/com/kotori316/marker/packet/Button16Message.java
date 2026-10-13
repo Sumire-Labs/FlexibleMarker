@@ -51,13 +51,18 @@ public class Button16Message implements IMessage {
     }
 
     public static IMessage onReceive(Button16Message message, MessageContext ctx) {
-        World world = ctx.getServerHandler().player.world;
-        TileEntity entity = world.getTileEntity(message.pos);
-        if (entity instanceof Tile16Marker && world.provider.getDimension() == message.dim) {
-            Tile16Marker marker = (Tile16Marker) entity;
-            marker.changeSize(message.amount, message.yMax, message.yMin);
-            return new AreaMessage(message.pos, message.dim, marker.min(), marker.max());
-        }
+        net.minecraft.entity.player.EntityPlayerMP player = ctx.getServerHandler().player;
+        player.getServerWorld().addScheduledTask(() -> {
+            World world = player.world;
+            if (world.provider.getDimension() != message.dim || player.getDistanceSqToCenter(message.pos) > 64
+                    || !world.isBlockLoaded(message.pos) || message.amount < 16 || message.yMin < 0 || message.yMax < message.yMin) return;
+            TileEntity entity = world.getTileEntity(message.pos);
+            if (entity instanceof Tile16Marker marker) {
+                marker.changeSize(message.amount, message.yMax, message.yMin);
+                marker.markDirty();
+                PacketHandler.sendToClient(new AreaMessage(message.pos, message.dim, marker.min(), marker.max()), player);
+            }
+        });
         return null;
     }
 }

@@ -1,0 +1,37 @@
+// Validate the remapped distribution rather than the development-classifier JAR.
+def distribution = tasks.named(enable_shadow.toBoolean() ? 'remapShadowJar' : 'remapJar')
+def expectedVersion = versioning.version
+tasks.register('verifyReleaseJar') {
+    group = 'verification'
+    dependsOn(distribution)
+    doLast {
+        def archive = distribution.get().archiveFile.get().asFile
+        new java.util.zip.ZipFile(archive).withCloseable { zip ->
+            def read = { String name ->
+                def entry = zip.getEntry(name)
+                if (entry == null) throw new GradleException("Missing release entry: ${name}")
+                zip.getInputStream(entry).withCloseable { it.readAllBytes() }
+            }
+            def metadataText = new String(read('mcmod.info'), 'UTF-8')
+            def metadata = new groovy.json.JsonSlurper().parseText(metadataText)[0]
+            if (metadata.modid != 'flexiblemarker' || metadata.version != expectedVersion.get()
+                    || metadataText.contains('@{') || metadataText.contains('\${version}'))
+                throw new GradleException('Incorrect or unresolved release metadata')
+            def manifest = new java.util.jar.Manifest(new ByteArrayInputStream(read('META-INF/MANIFEST.MF')))
+            if (manifest.mainAttributes.getValue('ModType') != 'CRL')
+                throw new GradleException('Release must target Cleanroom')
+            read('com/kotori316/marker/render/Box.class')
+            read('com/sumirelabs/flexiblemarker/gui/mui/MarkerGuiFactory.class')
+            if (!metadata.dependencies.contains('modularui'))
+                throw new GradleException('ModularUI must be declared as a dependency')
+            if (zip.entries().any { it.name.startsWith('scala/') || it.name.endsWith('.scala') || it.name.endsWith('.tasty') })
+                throw new GradleException('Scala runtime or sources unexpectedly bundled in the distribution')
+            zip.entries().findAll { it.name.endsWith('.class') }.each { entry ->
+                def data = new String(read(entry.name), java.nio.charset.StandardCharsets.ISO_8859_1)
+                if (data.contains('scala/') || data.contains('@{mod_') || data.contains('\${version}'))
+                    throw new GradleException("Unexpected Scala dependency or token in ${entry.name}")
+            }
+        }
+        logger.lifecycle("Verified Scala-free Cleanroom JAR: ${archive.name}")
+    }
+}

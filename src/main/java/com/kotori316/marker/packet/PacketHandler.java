@@ -6,6 +6,7 @@ import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraft.entity.player.EntityPlayerMP;
 
 import com.kotori316.marker.Marker;
 
@@ -13,7 +14,7 @@ public class PacketHandler {
     private static SimpleNetworkWrapper wrapper;
 
     public static void init() {
-        wrapper = NetworkRegistry.INSTANCE.newSimpleChannel(Marker.ModName);
+        wrapper = NetworkRegistry.INSTANCE.newSimpleChannel(Marker.NETWORK_CHANNEL);
         AtomicInteger i = new AtomicInteger(0);
         wrapper.registerMessage(ButtonMessage::onReceive, ButtonMessage.class, i.getAndIncrement(), Side.SERVER);
         wrapper.registerMessage(AreaMessage::onReceive, AreaMessage.class, i.getAndIncrement(), Side.CLIENT);
@@ -22,5 +23,9 @@ public class PacketHandler {
 
     public static void sendToServer(IMessage message) {
         wrapper.sendToServer(message);
+    }
+
+    public static void sendToClient(IMessage message, EntityPlayerMP player) {
+        wrapper.sendTo(message, player);
     }
 }

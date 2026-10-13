@@ -1,0 +1,22 @@
+// You may write any gradle buildscript component in this file
+// This file is automatically applied after build.gradle + dependencies.gradle is ran
+
+// Helper methods (assertProperty, assertSubProperties, setDefaultProperty) are
+// defined directly in build.gradle's script scope and exported via ext.
+
+apply from: 'gradle/scripts/verify-release.gradle'
+
+def releaseVersion = versioning.version
+def releaseStage = versioning.stage
+tasks.register('writeReleaseMetadata') {
+    def destination = layout.buildDirectory.file('release-metadata.properties')
+    inputs.property('version', releaseVersion)
+    inputs.property('stage', releaseStage)
+    outputs.file(destination)
+    doLast {
+        def target = destination.get().asFile
+        target.parentFile.mkdirs()
+        def stage = releaseStage.get().name().toLowerCase(Locale.ROOT)
+        target.setText("version=${releaseVersion.get()}\nstage=${stage == 'rc' ? 'beta' : stage}\n", 'UTF-8')
+    }
+}

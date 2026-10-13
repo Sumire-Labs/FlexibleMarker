@@ -1,131 +1,238 @@
-buildscript {
-    repositories {
-        jcenter()
-        maven { url = "http://files.minecraftforge.net/maven" }
-        maven { url = "https://plugins.gradle.org/m2/" }
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-    }
-}
-apply plugin: 'scala'
-apply plugin: 'net.minecraftforge.gradle.forge'
-//Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
-
-
-version = "2.0"
-group = "com.kotori316" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-archivesBaseName = "Marker"
-
-sourceCompatibility = targetCompatibility = "1.8" // Need this here so eclipse task generates correctly.
-compileScala {
-    sourceCompatibility = targetCompatibility = "1.8"
-    compileScala.options.compilerArgs = ['-Xlint:all']
-    scalaCompileOptions.additionalParameters = ["-feature"/*, "-target:jvm-1.8", "-Ybackend:GenBCode", "-Ydelambdafy:method"*/]
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'com.gradleup.shadow' version '9.6.1'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.4.1'
+    id 'xyz.wagyourtail.unimined' version '1.4.43-kappa'
+    id 'com.cleanroommc.versioning' version '3.3.0'
+    id 'com.cleanroommc.tokenenvoy' version '3.0.0'
 }
 
-minecraft {
-    version = "1.12.2-14.23.5.2847"
-    runDir = "run"
+import org.jetbrains.gradle.ext.Gradle
 
-    // the mappings can be changed at any time, and must be in the following format.
-    // snapshot_YYYYMMDD   snapshot are built nightly.
-    // stable_#            stables are built at the discretion of the MCP team.
-    // Use non-default mappings at your own risk. they may not always work.
-    // simply re-run your setup task after changing the mappings to update your workspace.
-    mappings = "snapshot_20171003"
-    // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
-    replace "\${version}", project.version
-    replace '@FINGERPRINT@', project.hasProperty('signSHA1') ? project.getProperty('signSHA1') : ""
+ext {
+    //noinspection GroovyAssignabilityCheck
+    access_transformer_locations = "${mod_id}_at.cfg"
 }
 
-repositories {
-    maven {
-        name 'curseforge'
-        url 'https://minecraft.curseforge.com/api/maven/'
+// CleanroomVersioning derives project.version from Git tags.
+group = root_package
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
     }
-    maven {
-        name = "AzureRepository"
-        url = uri("https://pkgs.dev.azure.com/Kotori316/minecraft/_packaging/mods/maven/v1")
+    if (generate_sources_jar.toBoolean()) {
+        withSourcesJar()
     }
-    maven {
-        name = "CoFH Maven"
-        url = "http://maven.covers1624.net"
+    if (generate_javadocs_jar.toBoolean()) {
+        withJavadocJar()
     }
-    maven {
-        name "BuildCraft"
-        url = "https://mod-buildcraft.com/maven"
+}
+
+configurations {
+    contain
+    implementation.extendsFrom(contain)
+    modCompileOnly
+    compileOnly.extendsFrom(modCompileOnly)
+    modRuntimeOnly
+    runtimeOnly.extendsFrom(modRuntimeOnly)
+}
+
+def remapTaskName = enable_shadow.toBoolean() ? "remapShadowJar" : "remapJar"
+
+//noinspection GroovyAssignabilityCheck
+unimined.minecraft {
+    version "1.12.2"
+
+    mappings {
+        mcp("stable", "39-1.12")
     }
-    maven {
-        // location of a maven mirror for JEI files, as a fallback
-        name = "ModMaven"
-        url = "https://modmaven.k-4u.nl"
+
+    cleanroom {
+        if (use_access_transformer.toBoolean()) {
+            accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
+        }
+        loader "0.6.13-alpha"
+        runs.all {
+            args += ['--username', minecraft_username]
+            def extraArgs = extra_jvm_args
+            if (extraArgs != null && !extraArgs.trim().isEmpty()) {
+                jvmArgs += extraArgs.split("\\s+").toList()
+            }
+            if (enable_foundation_debug.toBoolean()) {
+                systemProperty("foundation.dump", "true")
+                systemProperty("foundation.verbose", "true")
+            }
+            if (is_coremod.toBoolean()) {
+                systemProperty("fml.coreMods.load", coremod_plugin_class_name)
+            }
+            return
+        }
     }
+
+    defaultRemapJar = false
+
+    String jarTaskName = enable_shadow.toBoolean() ? "shadowJar" : "jar"
+
+    remap(tasks.named(jarTaskName).get())
+
+    mods {
+        remap(configurations.modCompileOnly)
+        remap(configurations.modRuntimeOnly)
+    }
+}
+
+// Remove the annoying blue icon by Unimined
+tasks.matching { it.name == 'genIntellijRuns' }.configureEach {
+    enabled = false
 }
 
 dependencies {
-    compile 'org.scala-lang:scala-library:2.11.11'
-//    compile group: "com.github.bigwheel", name: "util-backports_2.12", version: "1.1"
-    deobfCompile "com.mod-buildcraft:buildcraft-main:7.99.24.5"
-    //https://minecraft.curseforge.com/api/maven/additional-enchanted-miner/AdditionalEnchantedMiner-1.12.2/0.10.8/AdditionalEnchantedMiner-1.12.2-0.10.8-deobf.jar
-    deobfCompile "com.kotori316:AdditionalEnchantedMiner:12.5.7:deobf".toLowerCase()
+    if (use_asset_mover.toBoolean()) {
+        implementation "com.cleanroommc:assetmover:${asset_mover_version}"
+    }
+    if (enable_junit_testing.toBoolean()) {
+        testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+}
+
+apply from: 'gradle/scripts/dependencies.gradle'
+
+// Unimined's Minecraft classpath belongs to main; geometry regression tests use it too.
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
 }
 
 processResources {
-    // this will ensure that this task is redone when the versions change.
-    inputs.property "version", project.version
-    inputs.property "mcversion", project.minecraft.version
+    rename '(.+_at.cfg)', 'META-INF/$1'
+}
 
-    // replace stuff in mcmod.info, nothing else
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-
-        // replace version and mcversion
-        expand 'version': project.version, 'mcversion': project.minecraft.version
+tokenEnvoy {
+    main {
+        set 'mod_id', mod_id
+        set 'mod_name', mod_name
+        set 'mod_version', versioning.version
+        set 'mod_description', mod_description
+        set 'mod_authors', mod_authors.toString().split(',').findAll { !it.isBlank() }.collect { "\"" + it.strip() + "\"" }.join(', ')
+        set 'mod_credits', mod_credits
+        set 'mod_url', mod_url
+        set 'mod_update_json', mod_update_json
+        set 'mod_logo_path', mod_logo_path
+        set 'mod_issue_tracker', mod_issue_tracker
+        classes {
+            include 'com/kotori316/marker/MarkerTags.class', 'com/kotori316/marker/Marker.class'
+        }
+        resources {
+            include 'mcmod.info', 'pack.mcmeta'
+        }
     }
+}
 
-    // copy everything else except the mcmod.info
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
+idea {
+    module {
+        inheritOutputDirs = true
     }
+    project {
+        settings {
+            runConfigurations {
+                '1. Build'(Gradle) {
+                    taskNames = ["build"]
+                }
+                '2. Run Client'(Gradle) {
+                    taskNames = ["runClient"]
+                }
+                '3. Run Server'(Gradle) {
+                    taskNames = ["runServer"]
+                }
+            }
+            compiler.javac {
+                afterEvaluate {
+                    javacAdditionalOptions = '-encoding utf8'
+                    moduleJavacAdditionalOptions = [
+                            (project.name + '.main'): tasks.compileJava.options.compilerArgs.collect { "\"${it}\"" }.join(' ')
+                    ]
+                }
+            }
+            taskTriggers {
+                beforeSync tasks.named("genSources")
+            }
+        }
+    }
+}
+
+if (!enable_shadow.toBoolean()) {
+    shadowJar.enabled = false
+}
+
+compileJava {
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {
-    classifier = 'universal'
-}
-
-task signJar(type: SignJar, dependsOn: reobfJar) {
-
-    // Skips if the keyStore property is missing.
-    onlyIf {
-        project.hasProperty('keyStore')
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    if (configurations.contain.size() > 0) {
+        into('/') {
+            from configurations.contain
+        }
     }
-
-    // findProperty allows us to reference the property without it existing.
-    // Using project.propName would cause the script to fail validation if
-    // the property did not exist.
-    keyStore = project.hasProperty('keyStore') ? project.getProperty("keyStore") : ""
-    alias = project.hasProperty('keyStoreAlias') ? project.getProperty('keyStoreAlias') : ""
-    storePass = project.hasProperty('keyStorePass') ? project.getProperty('keyStorePass') : ""
-    keyPass = project.hasProperty('keyStoreKeyPass') ? project.getProperty('keyStoreKeyPass') : ""
-    inputFile = jar.archivePath
-    outputFile = jar.archivePath
-}
-// Runs this task automatically when build is ran.
-build.dependsOn signJar
-
-task srcJar(type: Jar) {
-    from sourceSets.main.allSource
-    classifier = 'sources'
-}
-
-task deobfJar(type: Jar) {
-    from sourceSets.main.output
-    classifier = 'deobf'
-}
-
-// Tell the artifact system about our extra jars
-artifacts {
-    archives srcJar, deobfJar
+    doFirst {
+        manifest {
+            def attribute_map = [:]
+            attribute_map['ModType'] = "CRL"
+            if (configurations.contain.size() > 0) {
+                attribute_map['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
+                attribute_map['NonModDeps'] = true
+            }
+            if (is_coremod.toBoolean()) {
+                attribute_map['FMLCorePlugin'] = coremod_plugin_class_name
+                if (coremod_includes_mod.toBoolean()) {
+                    attribute_map['FMLCorePluginContainsFMLMod'] = true
+                }
+            }
+            if (use_access_transformer.toBoolean()) {
+                attribute_map['FMLAT'] = access_transformer_locations
+            }
+            attributes(attribute_map)
+        }
+    }
+    finalizedBy(tasks.named(remapTaskName).get())
 }
 
+
+shadowJar {
+    //noinspection GroovyAssignabilityCheck,GroovyAccessibility
+    configurations = [project.configurations.shadow]
+    archiveClassifier = "shadow"
+}
+
+compileTestJava {
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    })
+    if (show_testing_output.toBoolean()) {
+        testLogging {
+            showStandardStreams = true
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+apply from: 'gradle/scripts/publishing.gradle'
+apply from: 'gradle/scripts/extra.gradle'

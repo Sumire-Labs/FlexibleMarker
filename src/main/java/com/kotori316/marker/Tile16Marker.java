@@ -65,8 +65,11 @@ public class Tile16Marker extends TileEntity implements ITileAreaProvider, IDebu
 
     @SideOnly(Side.CLIENT)
     public int getSize() {
-        return size;
+        return getConfiguredSize();
     }
+
+    /** Common-side accessor for server-authoritative UI synchronization. */
+    public int getConfiguredSize() { return size; }
 
     // TileEntity overrides
     @Override

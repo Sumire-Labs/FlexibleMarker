@@ -4,3 +4,7 @@ tile.marker16.name=Chunkっぽいマーカー
 gui.left=左
 gui.forward=前方
 gui.right=右
+gui.mui.bottom_y=下限Y
+gui.mui.top_y=上限Y
+gui.mui.chunks=チャンク数
+gui.mui.modifiers=Y: Ctrl x4 / Shift x16 / 両方 x64

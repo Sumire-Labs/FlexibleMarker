@@ -15,10 +15,12 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.kotori316.marker.gui.GuiHandler;
 import com.kotori316.marker.packet.PacketHandler;
 
-@Mod(modid = Marker.modID, name = Marker.ModName, version = "${version}", certificateFingerprint = "@FINGERPRINT@")
+@Mod(modid = Marker.modID, name = Marker.ModName, version = MarkerTags.VERSION,
+    dependencies = "required-after:cleanroom;required-after:modularui@[3.1.6,);after:buildcraftlib;after:quarryplus", acceptedMinecraftVersions = "[1.12.2]")
 public class Marker {
-    public static final String modID = "flexiblemarker";
-    public static final String ModName = "FlexibleMarker";
+    public static final String modID = MarkerTags.MOD_ID;
+    public static final String ModName = MarkerTags.MOD_NAME;
+    public static final String NETWORK_CHANNEL = "FlexibleMarker";
     public static final BlockMarker blockMarker = new BlockMarker.BlockFlexMarker();
     public static final BlockMarker block16Marker = new BlockMarker.Block16Marker();
     private static final Marker instance;
@@ -29,6 +31,7 @@ public class Marker {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        com.sumirelabs.flexiblemarker.gui.mui.MarkerGuiFactory.register();
         MinecraftForge.EVENT_BUS.register(getInstance());
         NetworkRegistry.INSTANCE.registerGuiHandler(getInstance(), new GuiHandler());
         PacketHandler.init();

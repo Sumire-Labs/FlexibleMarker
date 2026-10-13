@@ -4,3 +4,7 @@ tile.marker16.name=Chunk Marker
 gui.left=Left
 gui.forward=Forward
 gui.right=Right
+gui.mui.bottom_y=Lower Y
+gui.mui.top_y=Upper Y
+gui.mui.chunks=Chunks
+gui.mui.modifiers=Y: Ctrl x4, Shift x16, Ctrl+Shift x64
